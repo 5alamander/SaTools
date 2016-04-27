@@ -1,0 +1,53 @@
+#+startup: showall
+
+* JsonUtilityEx
+  - ToJson(object obj, bool prettyPrint):string
+  - FromJson<T>(string str):T
+  - FromJson(string str, Type type):object
+  - FromJsonOverwrite(string str, object obj):void
+  - loadList<T>(string str):List<T>
+  - loadDict<T>(string str, Func<T, string> keyFunc):Dictionary<T>
+
+** For List
+   #+BEGIN_SRC csharp
+     /*
+     [
+       {"id": 1, "name": "A"},
+       {"id": 2, "name": "B"}
+     ]
+     ,*/
+     JsonUtilityEx.loadList<MyType>("file path");
+     // or
+     JsonUtilityEx.FromJson<List<MyType>>("the file content");
+
+     [Serializable]
+     class MyType {
+         [SerializeField] private int id;
+         [SerializeField] private string name;
+     }
+   #+END_SRC
+
+** For Dict
+
+*** create from list
+    create with a get-key function
+    #+BEGIN_SRC csharp
+      /*
+      [
+        {"id": 1, "name": "A"},
+        {"id": 2, "name": "B"}
+      ]
+      */
+      JsonUtilityEx.loadDict<MyType>("file path", (item) => {return item.name;});
+    #+END_SRC
+    
+*** Serialize Dictionary or load from json
+    #+BEGIN_SRC csharp
+      var dict = new Dictionary<string, MyType>();
+
+      // convert to json string
+      var str = JsonUtilityEx.ToJson(dict);
+      // convert to object
+      Dictionary<string, MyType> d1 =
+          JsonUtilityEx.FromJson<Dictionary<string, MyType>>(str);
+    #+END_SRC
