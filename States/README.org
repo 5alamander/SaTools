@@ -1,0 +1,158 @@
+#+startup: showall
+
+* StateMechine
+  For game-state and ui-state
+
+** usage
+   #+BEGIN_SRC csharp
+     //...
+     private StateMechine state;
+     enum MyState {A, B, C}
+
+     IEnumerator Start () {
+         state = StateMechine.get(this.gameObject);// attach to this gameObject
+         state.initState(MyState.A);
+         yield return new WaitForSeconds(1);
+         state.trans(MyState.A, MyState.B);// trans A -> B
+         state.trans(MyState.B, MyState.C);// trans B -> C
+         // state.trans(MyState.A, MyState.B);// this will be skipped
+         yield return new WaitForSeconds(1);
+         state.initState(1);
+         // state.setState(1); // same as init, but this will trigger MyState.C -> 1
+     }
+
+     void Update () {
+         if (state.onTrans(MyState.A, MyState.B)) {
+             // ...
+         }
+         else if (state.onTrans(MyState.C, 1)) {
+             // ...
+             state.trans(1, MyState.A); // this will be queued at this frame
+         }
+
+         if (state.onState(1)) {
+             // ...
+         }
+         else if (state.onState(MyState.A)) {
+             // ...
+         }
+     }
+     //...
+   #+END_SRC
+
+* StateStation
+  StateMechine Extensions
+  
+** usage
+   #+BEGIN_SRC csharp
+     enum MyState {init, start, running, end}
+
+     class MyLogic { // any class with the OnStateAttribute
+
+         [OnState(MyState.init, MyState.start)]
+         public void whenStartGame () {
+             // ... start logic
+         }
+
+         [OnState(MyState.running)]
+         public void tick () {
+             // ... do this every frame
+         }
+     }
+
+     public class GameController : MonoBehaviour {
+         IEnumerator Start () {
+             var ss = StateStation.get(gameObject);
+             var t = new MyLogic();
+
+             ss.register(t);
+             ss.register(this);
+
+             yield return new WaitForSeconds(1);
+             // .. test ..
+             ss.initState(MyState.init);
+             ss.trans(MyState.init, MyState.start);
+         }
+
+         [OnState(MyState.start)]
+         public void myStateStart () {
+             // ...
+         }
+     }
+   #+END_SRC
+
+* Coroutine
+  Coroutines with return value, debug, and cancel action
+
+** usage
+   #+BEGIN_SRC csharp
+     public class TestCoroutineExt : MonoBehaviour {
+
+         public IEnumerator Start () {
+
+             var routine = this.StartCoroutine<int>(TestNewRoutine()); // start our new routine
+             yield return routine.coroutine; // wait
+             Debug.Log(routine.Value); // print the result now that it is finish
+
+             // test with errors
+             var routine1 = this.StartCoroutine<int>(TestNewRoutineGivesException());
+             yield return routine1.coroutine;
+             try {
+                 Debug.Log(routine1.Value);
+             }
+             catch (Exception e) {
+                 Debug.Log(e.Message);
+                 // Debug.Break();
+             }
+
+             var routine2 = this.StartCoroutine<int>(TestNewRoutineAndCancelled());
+             routine2.Cancel();
+             yield return routine2.coroutine;
+             try {
+                 Debug.Log(routine2.Value);
+             }
+             catch (CoroutineCancelledException) {
+                 Debug.Log("routine2 is cancelled");
+             }
+         }
+
+         IEnumerator TestNewRoutine() {
+             yield return null;
+             yield return new WaitForSeconds(2f);
+             yield return 10;
+         }
+
+         IEnumerator TestNewRoutineGivesException() {
+             yield return null;
+             yield return new WaitForSeconds(2f);
+             throw new Exception("Bad thing!");
+         }
+
+         IEnumerator TestNewRoutineAndCancelled () {
+             while (true) {
+                 yield return null;
+             }
+         }
+     }
+   #+END_SRC
+
+* CoroutineQueue
+  coroutine queue
+
+** usage
+   #+BEGIN_SRC csharp
+     void Start() {
+         var queue = new CoroutineQueue(this, 2); // maxNum of coroutine is 2
+
+         for (var i = 0; i < 20; i++) {
+             queue.Run(Test(i));
+         }
+     }
+
+     IEnumerator Test(int n) {
+         for (var i = 0; i < 3; i++) {
+             Debug.Log("Coroutine: " + n);
+             yield return null;
+         }
+     }
+   #+END_SRC
